@@ -7,15 +7,20 @@
 
 #define Threads_per_block 128
 
-#define data_size (8*1024*1024) //Not sure what this size means, will find out later. wondering why it isn't like [][]...
+#define num_row (100) //Not sure what this size means, will find out later. wondering why it isn't like [][]...
+#define num_col (100)
 
-int  dM[data_size];
-int  dN[data_size];
-int  dP[data_size];
+int  dM[num_row][num_col];
+int  dN[num_row][num_col];
+int  dP[num_row][num_col];
 
-int  hM[data_size];
-int  hN[data_size];
-int  hP[data_size];
+int  hM[num_row][num_col];
+int  hN[num_row][num_col];
+int  hP[num_row][num_col];
+
+
+dim3 blocksPerGrid(1000,1,1);
+dim3 threadsPerBlock(1000,1,1);
 
 
 
@@ -30,10 +35,14 @@ __global__ void addKernel(int *c, const int *a, const int *b)
 
 //Multiplication kernel function
 __global__ void mulKernel(int* P, int* M, int* N, int rows, int columns) {
-    int gid = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (gid < data_size) {
-        P[gid] = M[gid] + N[gid];
+    if (row < data_size) {
+        P[row] = M[row] + N[row];
+    }
+    if (col < data_size) {
+        P[col] = M[col] + N[col];
     }
     //do matrix mul on GPU
     //do matrix mul on CPU? (Maybe do somewhere else)
@@ -50,6 +59,8 @@ Transfer input data to device, launch kernel
 
 int main()
 {
+    int* h_pointer, * d_pointer;
+
 
     
     int matrix_size = 100;
@@ -58,6 +69,10 @@ int main()
        hN[i] = hM[i] = (float)sqrtf((float)i);
     }
 
+    //Copy mem
+    kernel << <blocksPerGrid, threadsPerBlock, 0, 0 >> > ()
+    //call function to do matrix mul
+    //copy mem
 
     //DEFAULT OLD STUFF!!!!!!
     // 
