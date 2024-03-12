@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define Threads_per_block 128
 
@@ -18,92 +19,60 @@ int  hM[num_row][num_col];
 int  hN[num_row][num_col];
 int  hP[num_row][num_col];
 
+#define WIDTH = 100; //change this
 
-dim3 blocksPerGrid(1000,1,1);
-dim3 threadsPerBlock(1000,1,1);
-
+int size = WIDTH * WIDTH * sizeof(float);
 
 
 
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
 
-__global__ void addKernel(int *c, const int *a, const int *b)
-{
-    int i = threadIdx.x;
-    c[i] = a[i] + b[i];
-}
 
 //Multiplication kernel function
-__global__ void mulKernel(int* P, int* M, int* N, int rows, int columns) {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void mulKernel(int* P, int* M, int* N, int rows_and_cols) {
+    int rows = blockIdx.y * blockDim.y + threadIdx.y;
+    int cols = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (row < data_size) {
-        P[row] = M[row] + N[row];
+    float temp_sum = 0.0;
+
+    if (row < rows_and_cols && cols < rows_and_cols) {
+        
+        for (int i = 0; i < rows_and_cols; i++) {
+            tmpSum += P[rows * rows_and_cols + i] * M[i * rows_and_cols + cols];
+        }
     }
-    if (col < data_size) {
-        P[col] = M[col] + N[col];
-    }
-    //do matrix mul on GPU
-    //do matrix mul on CPU? (Maybe do somewhere else)
-    //Compare the two results (within tolerance) if good, test passed.
+    C[rows * rows_and_cols + cols] = temp_sum;
 }
 
-/*Host matrix mul
-
-Allocate memory for input and output matrices
-
-Transfer input data to device, launch kernel
-
-*/
+void matrixMultiplicationdefn(int* P, int* M, int* N, int rows_and_cols) {
+    //Define the dimensions of blocks and grids
+    dim3 blocksPerGrid(rows_and_cols); //1x1x1
+    dim3 threadsPerBlock(1, 1); //100x1x1
+}
 
 int main()
 {
-    int* h_pointer, * d_pointer;
+    //Pointers to host and device memory
+    int* h_pointer = 0;
+    int* d_pointer = 0;
+
+    int n =
 
 
-    
-    int matrix_size = 100;
+
+
+
+
+        int matrix_size = 100;
     //fill host mem
     for (int i = 0; i < matrix_size; i++) {
-       hN[i] = hM[i] = (float)sqrtf((float)i);
+        hN[i] = hM[i] = (float)sqrtf((float)i);
     }
 
-    //Copy mem
-    kernel << <blocksPerGrid, threadsPerBlock, 0, 0 >> > ()
-    //call function to do matrix mul
-    //copy mem
+    cudaMemcpyAsync(d_pointer, h_pointer, )
+        kernel << <blocksPerGrid, threadsPerBlock, 0, 0 >> > ()
 
-    //DEFAULT OLD STUFF!!!!!!
-    // 
-    // 
-    // 
-    //const int arraySize = 5;
-    //const int a[arraySize] = { 1, 2, 3, 4, 5 };
-    //const int b[arraySize] = { 10, 20, 30, 40, 50 };
-    //int c[arraySize] = { 0 };
-
-    //// Add vectors in parallel.
-    //cudaError_t cudaStatus = addWithCuda(c, a, b, arraySize);
-    //if (cudaStatus != cudaSuccess) {
-    //    fprintf(stderr, "addWithCuda failed!");
-    //    return 1;
-    //}
-
-    //printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-    //    c[0], c[1], c[2], c[3], c[4]);
-
-    //// cudaDeviceReset must be called before exiting in order for profiling and
-    //// tracing tools such as Nsight and Visual Profiler to show complete traces.
-    //cudaStatus = cudaDeviceReset();
-    //if (cudaStatus != cudaSuccess) {
-    //    fprintf(stderr, "cudaDeviceReset failed!");
-    //    return 1;
-    //}
-
-    //return 0;
 }
-
 // Helper function for using CUDA to add vectors in parallel.
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
 {
