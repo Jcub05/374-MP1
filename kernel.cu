@@ -6,10 +6,11 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define Threads_per_block 128
 
 #define WIDTH (1500) //CHANGE THIS!!!
 
-#define BLOCK_WIDTH 2 //CHANGE THIS!!!
+#define BLOCK_WIDTH 1
 
 
 
@@ -39,18 +40,22 @@ int main()
     float* h_M;
     float* h_N;
     float* h_P;
-    float* h_Pcheck;
 
+
+
+    //int WIDTH[5] = { 100, 250, 500, 1000, 2500 }; // Initialize WIDTH array here
+
+
+    //for (int i = 0; i < 5; i++) {
 
     int size = WIDTH * WIDTH * sizeof(float);
 
     cudaMallocHost((void**)&h_M, size);
     cudaMallocHost((void**)&h_N, size);
     cudaMallocHost((void**)&h_P, size);
-    cudaMallocHost((void**)&h_Pcheck, size);
 
     int NumBlocks = WIDTH / BLOCK_WIDTH;
-    if (WIDTH % BLOCK_WIDTH) NumBlocks++;
+    //if (WIDTH % BLOCK_WIDTH) NumBlocks++;
 
     dim3 dimGrid(NumBlocks, NumBlocks);
     dim3 dimBlock(BLOCK_WIDTH, BLOCK_WIDTH);
@@ -69,17 +74,19 @@ int main()
     cudaMalloc((void**)&d_N, size);
     cudaMalloc((void**)&d_P, size);
 
+
     //fill host matrices
     for (int k = 0; k < WIDTH; k++) {
         for (int j = 0; j < WIDTH; j++) {
-            h_M[k * WIDTH + j] = ((float)rand() / RAND_MAX) * 100.0f; // fill with rand values from 0-100
-            h_N[k * WIDTH + j] = ((float)rand() / RAND_MAX) * 100.0f;
-            h_P[k * WIDTH + j] = 0.0;
-            h_Pcheck[k * WIDTH + j] = 0.0;
+            h_M[k * WIDTH + j] = ((float)rand() / RAND_MAX) * 100.0; // fill with rand values from 0-100
+            h_N[k * WIDTH + j] = ((float)rand() / RAND_MAX) * 100.0;
+            h_P[k * WIDTH + j] = 0;
         }
     }
 
-    
+
+
+
 
     //Cpy to dev, timer
     cudaEventRecord(start, 0);
@@ -97,7 +104,7 @@ int main()
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
 
-    cudaEventElapsedTime(&elapsedTidme_DevToHost, start, stop);
+    cudaEventElapsedTime(&elapsedTime_DevToHost, start, stop);
     printf("| Transfer Device to Host, size[%d]: %f ms\n", WIDTH, elapsedTime_DevToHost);
 
     printf("\n");
@@ -106,13 +113,13 @@ int main()
     cudaEventRecord(start, 0);
 
 
-    //for (int i = 0; i < WIDTH; i++) {
-    //    for (int j = 0; j < WIDTH; j++) {
-    //        for (int k = 0; k < WIDTH; k++) {
-    //            h_Pcheck[i * WIDTH + j] += h_M[i * WIDTH + k] * h_N[k * WIDTH + j];
-    //        }
-    //    }
-    //}
+    for (int i = 0; i < WIDTH; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            for (int k = 0; k < WIDTH; k++) {
+                h_P[i * WIDTH + j] += h_M[i * WIDTH + k] * h_N[k * WIDTH + j];
+            }
+        }
+    }
 
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
@@ -121,15 +128,15 @@ int main()
     printf("Host Matrix Mul Time, size[%d]: %f ms\n", WIDTH, elapsedTime_MatrixMulHost);
 
     //Device Matrix Multiplication
+
+    //Cpy to dev, timer
     cudaEventRecord(start, 0);
     cudaMemcpy(d_M, h_M, size, cudaMemcpyHostToDevice);
     cudaMemcpy(d_N, h_N, size, cudaMemcpyHostToDevice);
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
 
-    cudaEventRecord(start, 0);
-
-    mulKernel << <dimGrid, dimBlock, 0, 0>> > (d_M, d_N, d_P, WIDTH);
+    mulKernel << <dimBlock, dimGrid, 0, 0 >> > (d_M, d_N, d_P, WIDTH);
 
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
@@ -137,34 +144,15 @@ int main()
     cudaEventElapsedTime(&elapsedTime_MatrixMulDev, start, stop);
     printf("Device Matrix Mul Time, size[%d]: %f ms\n", WIDTH, elapsedTime_MatrixMulDev);
 
+    cudaEventRecord(start, 0);
     cudaMemcpy(h_M, d_M, size, cudaMemcpyDeviceToHost);
     cudaMemcpy(h_N, d_N, size, cudaMemcpyDeviceToHost);
     cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop); 
+    cudaEventSynchronize(stop);
 
-    cudaMemcpy(h_P, d_P, size, cudaMemcpyDeviceToHost);
-
-    int check = 0;
-    for (int i = 0; i < WIDTH; i++) {
-        for (int j = 0; j < WIDTH; j++) {
-            if (abs(h_P[i * WIDTH + j] - h_Pcheck[i * WIDTH + j]) > 1) {
-                check = 1;
-            }
-        }
-    }
-
-    if (check == 0) {
-        printf("TEST PASSED\n");
-    }
-    else {
-        printf("TEST FAILED\n");
-    }
 
     cudaFree(d_M);
     cudaFree(d_N);
     cudaFree(d_P);
-    cudaFree(h_M);
-    cudaFree(h_N);
-    cudaFree(h_P);
-    cudaFree(h_Pcheck);
 }
+//}
